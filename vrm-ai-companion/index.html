@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aoi - 3D Anime AI Companion</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+  <link rel="stylesheet" href="./src/styles/companion.css">
+
+  <!-- Modern Import Map for Three.js and @pixiv/three-vrm -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.0/lib/three-vrm.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 0. 3D Model Loading Spinner Overlay -->
+  <div id="vrm-loading-spinner" class="loading-overlay">
+    <div class="spinner-box">
+      <div class="spinner-ring"></div>
+      <div class="spinner-text">🌸 Loading 3D Anime Companion...</div>
+      <div class="spinner-subtext">Initializing high-definition VRM model, shaders, and physics</div>
+    </div>
+  </div>
+
+  <!-- 1. Full Screen 3D WebGL Avatar Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- 2. Scenic Atmospheric Backdrop & Lighting FX -->
+  <div id="scene-overlay" class="scene-overlay sunset"></div>
+
+  <!-- 3. Top HUD: Affection Bond & Mood -->
+  <header class="top-hud">
+    <div class="companion-badge">
+      <div class="avatar-mini-icon">🌸</div>
+      <div class="companion-info">
+        <div class="companion-name-row">
+          <span id="hud-companion-name" class="companion-name">Aoi</span>
+          <span id="hud-mood-badge" class="emotion-pill">💖 Happy</span>
+        </div>
+        <div class="affection-progress-bar">
+          <div id="hud-affection-fill" class="affection-fill"></div>
+        </div>
+        <span id="hud-rank-text" class="affection-rank-text">🌱 New Friend (20 XP)</span>
+      </div>
+    </div>
+
+    <!-- HUD Action Controls -->
+    <div class="hud-actions">
+      <button id="hud-mute-btn" class="icon-btn" title="Toggle Voice Mute">🔊</button>
+      <button id="hud-scene-btn" class="icon-btn" title="Change Background Scene">🌆</button>
+      <button id="hud-settings-btn" class="icon-btn" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- 4. Floating Subtitle for Full Screen Immersion -->
+  <div id="floating-subtitle" class="floating-subtitle"></div>
+
+  <!-- 5. Bottom Glassmorphism Control Deck & Chat Stream -->
+  <main class="bottom-container">
+    <!-- Chat History Panel (Minimizable) -->
+    <section id="chat-panel" class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-header-title">
+          <span>💬 Conversation</span>
+        </div>
+        <button id="collapse-chat-btn" class="collapse-btn" title="Minimize Chat">✕</button>
+      </div>
+      <div id="messages-stream" class="messages-stream"></div>
+    </section>
+
+    <!-- Quick Actions Bar -->
+    <nav class="quick-actions-bar" aria-label="Quick Actions">
+      <button id="quick-headpat" class="quick-btn">💖 Headpat</button>
+      <button id="quick-wave" class="quick-btn">👋 Wave</button>
+      <button id="quick-cheer" class="quick-btn">🎉 Cheer</button>
+      <button id="quick-pose" class="quick-btn">✨ Pose</button>
+      <button id="quick-scene" class="quick-btn">🌆 Scene</button>
+    </nav>
+
+    <!-- Input Bar & Glowing Microphone -->
+    <div class="controls-deck">
+      <button id="toggle-chat-btn" class="toggle-chat-visibility-btn" title="Toggle Chat Panel">🔽</button>
+
+      <div class="input-wrapper">
+        <textarea
+          id="chat-input"
+          class="chat-input"
+          placeholder="Type your message or click 🎤 to talk..."
+          rows="1"
+        ></textarea>
+      </div>
+
+      <button id="send-btn" class="send-btn" title="Send Message">➤</button>
+
+      <!-- Glowing Microphone Button with Audio Waveform -->
+      <div class="mic-btn-container">
+        <canvas id="mic-wave-canvas" class="mic-wave-canvas"></canvas>
+        <button id="mic-btn" class="mic-btn" title="Tap to Speak hands-free">🎤</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 6. Settings Modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ Companion Settings</div>
+        <button id="close-modal-btn" class="modal-close-btn">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-tab="tab-brain">🧠 AI Brain</button>
+        <button class="modal-tab-btn" data-tab="tab-voice">🎙️ Voice & Speech</button>
+        <button class="modal-tab-btn" data-tab="tab-avatar">👗 3D Avatar</button>
+        <button class="modal-tab-btn" data-tab="tab-persona">💖 Persona</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Tab 1: AI Brain -->
+        <div id="tab-brain" class="tab-panel" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="setting-group">
+            <div class="setting-label">
+              <span>Local Ollama Status</span>
+              <span id="setting-ollama-status" class="status-badge offline">Checking...</span>
+            </div>
+            <div class="setting-desc">Connects automatically to Ollama at http://127.0.0.1:11434 with zero CORS issues.</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Active Brain Provider</div>
+            <select id="setting-brain-provider" class="setting-select">
+              <option value="ollama">Local Ollama (100% Offline & Free)</option>
+              <option value="builtin">Built-in Companion Brain (Zero Setup)</option>
+              <option value="gemini">Google Gemini API (Free Tier)</option>
+              <option value="groq">Groq Cloud API (Free Tier)</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Ollama Model</div>
+            <select id="setting-ollama-model" class="setting-select">
+              <option value="llama3">llama3 (Default)</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Google Gemini API Key (Optional)</div>
+            <input type="password" id="setting-gemini-key" class="setting-input" placeholder="AIzaSy..." />
+            <div class="setting-desc">100% Free on Google AI Studio. No credit card required.</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Groq API Key (Optional)</div>
+            <input type="password" id="setting-groq-key" class="setting-input" placeholder="gsk_..." />
+            <div class="setting-desc">Free ultra-fast Llama 3 70B inference.</div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Voice & Speech -->
+        <div id="tab-voice" class="tab-panel" style="display: none; flex-direction: column; gap: 14px;">
+          <div class="setting-group">
+            <div class="setting-label">Neural Voice (Edge-TTS)</div>
+            <select id="setting-voice" class="setting-select">
+              <option value="en-US-AnaNeural">🌸 Aoi (Ana Neural - Cute & Warm)</option>
+              <option value="en-US-JennyNeural">🎀 Jenny (Warm & Sweet)</option>
+              <option value="ja-JP-NanamiNeural">🇯🇵 Nanami (Japanese Anime Girl)</option>
+              <option value="en-GB-SoniaNeural">🍃 Sonia (Gentle & Caring)</option>
+              <option value="en-US-AriaNeural">⚡ Aria (Playful & Confident)</option>
+            </select>
+            <div class="setting-desc">Powered by free Microsoft Edge Neural Speech synthesis.</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">
+              <span>Voice Pitch Adjustment</span>
+              <span id="pitch-val">+15%</span>
+            </div>
+            <input type="range" id="setting-pitch" class="setting-slider" min="-30" max="40" value="15" />
+            <div class="setting-desc">Higher pitch produces a cuter anime companion tone.</div>
+          </div>
+
+          <button id="test-voice-btn" class="quick-btn" style="align-self: flex-start;">🔊 Test Voice</button>
+        </div>
+
+        <!-- Tab 3: 3D Avatar & Model Loader -->
+        <div id="tab-avatar" class="tab-panel" style="display: none; flex-direction: column; gap: 14px;">
+          <div class="setting-group">
+            <div class="setting-label">Preset 3D Companion</div>
+            <select id="setting-avatar-preset" class="setting-select">
+              <option value="/models/aoi.vrm">🌸 Aoi (High-Def Anime Companion - Installed)</option>
+              <option value="https://cdn.jsdelivr.net/gh/josephrocca/ChatVRM-js@v0.0.28/avatars/AvatarSample_B.vrm">✨ Avatar Sample B (VRoid Studio CDN)</option>
+            </select>
+            <div class="setting-desc">Switch between authentic, beautiful 3D anime models.</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Import Custom 3D VRM Model</div>
+            <div id="vrm-dropzone" class="vrm-dropzone">
+              <div style="font-size: 28px; margin-bottom: 6px;">📂</div>
+              <div style="font-size: 13px; font-weight: 600;">Drag & Drop any .vrm file here</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Supports VRoid Hub, Booth, or custom avatars</div>
+            </div>
+            <input type="file" id="vrm-file-input" accept=".vrm" style="display: none;" />
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Camera & Controls Tip</div>
+            <div class="setting-desc" style="line-height: 1.6;">
+              🖱️ <b>Left-Click Drag:</b> Rotate camera around Aoi<br>
+              🔍 <b>Mouse Wheel:</b> Zoom in to her face or zoom out for full body<br>
+              ✋ <b>Right-Click Drag:</b> Pan camera up & down<br>
+              💖 <b>Click Head:</b> Give Aoi a gentle headpat!
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Persona & Memory -->
+        <div id="tab-persona" class="tab-panel" style="display: none; flex-direction: column; gap: 14px;">
+          <div class="setting-group">
+            <div class="setting-label">Your Name / Nickname</div>
+            <input type="text" id="setting-user-name" class="setting-input" placeholder="Friend" />
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-label">Reset Conversation Memory</div>
+            <div class="setting-desc">Clears conversation history and starts a fresh session.</div>
+            <button id="clear-chat-btn" class="quick-btn" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171; margin-top: 6px; align-self: flex-start;">🗑️ Clear Chat History</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrapper Script -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
